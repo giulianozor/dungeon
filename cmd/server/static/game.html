@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dungeon Game</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d0d0d;
+    color: #b8a88a;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+    overflow: hidden;
+    height: 100vh;
+  }
+  h1 {
+    font-size: 1.3rem;
+    margin-bottom: 8px;
+    color: #d4af37;
+    text-shadow: 0 0 12px rgba(212,175,55,0.3);
+    letter-spacing: 2px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  h1 .new-game-link {
+    font-size: 0.8rem;
+    color: #6b5e4a;
+    letter-spacing: 1px;
+    text-decoration: none;
+    border: 1px solid #3a3024;
+    border-radius: 4px;
+    padding: 4px 10px;
+  }
+  h1 .new-game-link:hover { color: #d4af37; border-color: #6b5e4a; }
+  h1 .btn-leave { border-color: #6b3030; color: #c06060; }
+  h1 .btn-leave:hover { background: #252020; border-color: #a04040; color: #e07070; }
+
+  #chat-panel {
+    position: fixed;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 260px;
+    height: 46vh;
+    min-height: 220px;
+    background: #14100c;
+    border: 1px solid #3a3024;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 24px rgba(0,0,0,0.6);
+    z-index: 50;
+  }
+  #chat-header {
+    padding: 8px 12px;
+    color: #d4af37;
+    font-size: 0.85rem;
+    border-bottom: 1px solid #2a2018;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    letter-spacing: 1px;
+  }
+  #chat-msgs {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.82rem;
+  }
+  .chat-msg { color: #b8a88a; word-break: break-word; }
+  .chat-msg .who { color: #d4af37; font-weight: bold; }
+  .chat-msg.sys { color: #6b5e4a; font-style: italic; }
+  #chat-input-row {
+    display: flex;
+    border-top: 1px solid #2a2018;
+  }
+  #chat-input {
+    flex: 1;
+    background: #0d0d0d;
+    color: #b8a88a;
+    border: none;
+    outline: none;
+    padding: 8px 10px;
+    font-size: 0.82rem;
+  }
+  #chat-send {
+    background: #1a1a1a;
+    color: #60c060;
+    border: none;
+    border-left: 1px solid #2a2018;
+    padding: 0 14px;
+    cursor: pointer;
+  }
+  #chat-send:hover { background: #1a251a; }
+  #chat-panel.collapsed { height: auto; }
+  #chat-panel.collapsed #chat-msgs,
+  #chat-panel.collapsed #chat-input-row { display: none; }
+  #msg {
+    margin-bottom: 8px;
+    min-height: 1.5em;
+    color: #d4af37;
+    font-style: italic;
+    text-shadow: 0 0 6px rgba(212,175,55,0.15);
+  }
+  #summary {
+    margin-bottom: 8px;
+    color: #8a7a62;
+    font-size: 0.9rem;
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    min-height: 1.4em;
+  }
+  #summary .turn { color: #d4af37; font-weight: bold; }
+  #summary .room-id { letter-spacing: 2px; color: #b8a88a; }
+  #legend {
+    margin-bottom: 8px;
+    color: #b8a88a;
+    font-size: 0.85rem;
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    min-height: 1.4em;
+  }
+  #legend .entry { display: inline-flex; align-items: center; gap: 5px; }
+  #legend .tok { font-weight: bold; font-size: 1rem; }
+  #legend .entry.you { color: #fff; }
+  .top-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  #dice-result {
+    font-size: 1rem;
+    color: #d4af37;
+  }
+  .top-bar button {
+    background: #1a1a1a;
+    color: #b8a88a;
+    border: 1px solid #3a3024;
+    border-radius: 4px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .top-bar button:hover { background: #252525; border-color: #6b5e4a; }
+  .top-bar button:disabled { opacity: 0.4; cursor: default; }
+  .top-bar button:disabled:hover { background: #1a1a1a; border-color: #3a3024; }
+  .top-bar .btn-end { border-color: #6b3030; color: #c06060; }
+  .top-bar .btn-end:hover { background: #252020; border-color: #a04040; }
+
+  #grid-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #grid {
+    display: inline-grid;
+    gap: 0;
+    background: #080808;
+    padding: 6px;
+    border-radius: 6px;
+    border: 1px solid #2a2018;
+    box-shadow: 0 0 24px rgba(0,0,0,0.6), inset 0 0 12px rgba(0,0,0,0.4);
+  }
+  .cell {
+    width: var(--tile-size, 120px);
+    height: var(--tile-size, 120px);
+    position: relative;
+    cursor: default;
+    outline: 1px solid #1a1410;
+  }
+  .cell .tile-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .cell .overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    font-size: 34px;
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,0.5);
+  }
+  .cell .overlay.player { text-shadow: 0 0 14px rgba(255,255,255,0.35), 0 0 4px #000; }
+  .cell .overlay.player.you { font-size: 42px; }
+  .cell .overlay.player.sym-0 { color: #f0c040; }
+  .cell .overlay.player.sym-1 { color: #4cc9ff; }
+  .cell .overlay.player.sym-2 { color: #ff6bb0; }
+  .cell .overlay.player.sym-3 { color: #84f06e; }
+  .cell .overlay.player.sym-4 { color: #ff9f40; }
+  .cell .overlay.player.sym-5 { color: #c07bff; }
+  .cell .overlay.player.sym-6 { color: #ff5555; }
+  .cell .overlay.player.sym-7 { color: #9be4e0; }
+  .cell .overlay.goal { color: #e04040; text-shadow: 0 0 14px rgba(224,64,64,0.4), 0 0 4px #000; }
+  .cell.reachable { cursor: pointer; }
+  .cell.reachable.disabled { cursor: default; }
+  .cell .reachable-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(40,120,255,0.25);
+    pointer-events: none;
+    transition: background 0.15s;
+  }
+  .cell.reachable:not(.disabled):hover .reachable-overlay {
+    background: rgba(40,120,255,0.4);
+  }
+  .win-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    grid-column: 1 / -1;
+    grid-row: 1 / -1;
+  }
+  .win-text {
+    font-size: 3rem;
+    color: #d4af37;
+    text-shadow: 0 0 30px rgba(212,175,55,0.6), 0 0 60px rgba(212,175,55,0.3);
+    animation: pulse 1.5s ease-in-out infinite;
+    text-align: center;
+  }
+  .win-text a {
+    display: inline-block;
+    margin-top: 18px;
+    font-size: 1rem;
+    color: #b8a88a;
+    text-decoration: none;
+    border: 1px solid #3a3024;
+    border-radius: 6px;
+    padding: 8px 22px;
+    animation: none;
+    background: #1a1a1a;
+  }
+  .win-text a:hover { color: #d4af37; border-color: #6b5e4a; }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.03); opacity: 0.85; }
+  }
+  .slide-btn {
+    background: #1a1a1a;
+    border: 1px solid #3a3024;
+    border-radius: 4px;
+    color: #8a7a62;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    line-height: 1;
+    width: var(--btn-size, 34px);
+    height: var(--btn-size, 34px);
+    margin: auto;
+  }
+  .slide-btn:hover { background: #252525; color: #b8a88a; border-color: #6b5e4a; }
+  .slide-btn.col-btn { width: calc(var(--btn-size, 34px) * 1.2); height: calc(var(--btn-size, 34px) * 0.8); font-size: 0.8rem; }
+  .slide-btn:disabled { opacity: 0.3; cursor: default; }
+  .slide-btn:disabled:hover { background: #1a1a1a; color: #8a7a62; border-color: #3a3024; }
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    cursor: pointer;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    background: #14100c;
+    border: 1px solid #3a3024;
+    border-radius: 8px;
+    padding: 20px 28px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.8);
+    text-align: center;
+    min-width: 200px;
+    cursor: default;
+  }
+  .modal-box p {
+    margin-bottom: 16px;
+    font-size: 1rem;
+    color: #d4af37;
+  }
+  .modal-box button {
+    background: #1a1a1a;
+    color: #b8a88a;
+    border: 1px solid #306030;
+    border-radius: 4px;
+    padding: 6px 24px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #60c060;
+  }
+  .modal-box button:hover { background: #1a251a; border-color: #50a050; }
+
+  #lobby {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    width: 100%;
+  }
+  .lobby-box {
+    background: #14100c;
+    border: 1px solid #3a3024;
+    border-radius: 10px;
+    padding: 28px 36px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.6);
+    text-align: center;
+    min-width: 300px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .lobby-box h2 { color: #d4af37; font-size: 1.4rem; letter-spacing: 3px; margin-bottom: 8px; }
+  .lobby-box .hint { color: #6b5e4a; font-size: 0.85rem; margin-bottom: 16px; }
+  .lobby-box ul { list-style: none; margin: 12px 0; padding: 0; }
+  .lobby-box li {
+    padding: 8px 14px;
+    border: 1px solid #2a2018;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    color: #b8a88a;
+    background: #0d0d0d;
+  }
+  .lobby-box li.you { color: #d4af37; border-color: #6b5e4a; }
+  .lobby-box .wait { color: #8a7a62; margin-top: 12px; }
+  .copy-btn {
+    background: #1a1a1a;
+    color: #b8a88a;
+    border: 1px solid #3a3024;
+    border-radius: 4px;
+    padding: 2px 10px;
+    margin-left: 10px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    vertical-align: middle;
+  }
+  .copy-btn:hover { color: #d4af37; border-color: #6b5e4a; }
+  .copy-btn.copied { color: #60c060; border-color: #306030; }
+</style>
+</head>
+<body>
+<h1>Dungeon Game
+  <a class="new-game-link" href="/">＋ New Game</a>
+  <a id="leave-btn" class="new-game-link btn-leave" href="#" style="display:none">✕ Leave Game</a>
+</h1>
+
+<div id="lobby">
+  <div class="lobby-box">
+    <h2>Game ID: <span id="lobby-id"></span><button id="copy-id-btn" class="copy-btn" title="Copy game id">📋 Copy</button></h2>
+    <p class="hint">Share this ID so other players can join.</p>
+    <ul id="lobby-players"></ul>
+    <p class="wait" id="lobby-wait"></p>
+  </div>
+</div>
+
+<div id="play">
+  <div class="top-bar" id="top-bar">
+    <span id="dice-result"></span>
+    <button id="end-turn-btn" class="btn-end">⏹ End Turn</button>
+  </div>
+  <div id="summary"></div>
+  <div id="legend"></div>
+  <div id="msg"></div>
+  <div id="grid-wrap">
+  <div id="grid"></div>
+  </div>
+</div>
+
+<div id="chat-panel" style="display:none">
+  <div id="chat-header"><span>💬 Chat</span><span id="chat-toggle">–</span></div>
+  <div id="chat-msgs"></div>
+  <div id="chat-input-row">
+    <input id="chat-input" type="text" placeholder="Say something…" maxlength="200" autocomplete="off">
+    <button id="chat-send">Send</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal-box" id="modal-box">
+    <p id="modal-text">Move to tile?</p>
+    <button id="modal-confirm">Move</button>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const ROOM = params.get('room');
+const PID = params.get('pid');
+if (!ROOM || !PID) location.href = '/';
+
+const TILE_URL = '/tile/';
+
+let pendingMove = null;
+let lastState = null;
+let myTurn = false;
+let mode = 'multi';
+let lastChatId = -1;
+let myName = '';
+let autoEnding = false;
+
+const lobbyEl = document.getElementById('lobby');
+const playEl = document.getElementById('play');
+const summaryEl = document.getElementById('summary');
+const leaveBtn = document.getElementById('leave-btn');
+const chatPanel = document.getElementById('chat-panel');
+
+function tileKey(t) {
+  let n = 0;
+  if (t.OpenN) n |= 1;
+  if (t.OpenS) n |= 2;
+  if (t.OpenE) n |= 4;
+  if (t.OpenW) n |= 8;
+  return n;
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[c]);
+}
+
+async function getState() {
+  const r = await fetch(`/api/state?room=${encodeURIComponent(ROOM)}&pid=${encodeURIComponent(PID)}`, { cache: 'no-store' });
+  if (!r.ok) {
+    const err = new Error('HTTP ' + r.status);
+    err.status = r.status;
+    throw err;
+  }
+  return r.json();
+}
+
+async function action(endpoint, params) {
+  const url = `/api/${endpoint}?${new URLSearchParams(Object.assign({ room: ROOM, pid: PID }, params))}`;
+  const r = await fetch(url, { cache: 'no-store' });
+  if (!r.ok) {
+    const err = new Error(endpoint + ' returned ' + r.status);
+    err.status = r.status;
+    throw err;
+  }
+  return r.json();
+}
+
+function updateChat(chat, myName) {
+  if (!chat) return;
+  const box = document.getElementById('chat-msgs');
+  const frag = document.createDocumentFragment();
+  let expand = false;
+  for (const m of chat) {
+    if (m.id <= lastChatId) continue;
+    lastChatId = m.id;
+    if (m.name && m.name !== myName) expand = true;
+    const div = document.createElement('div');
+    div.className = 'chat-msg' + (m.name ? '' : ' sys');
+    if (m.name) {
+      const who = document.createElement('span');
+      who.className = 'who';
+      who.textContent = m.name + ': ';
+      div.appendChild(who);
+    }
+    div.appendChild(document.createTextNode(m.text));
+    frag.appendChild(div);
+  }
+  if (frag.childNodes.length) {
+    box.appendChild(frag);
+    box.scrollTop = box.scrollHeight;
+    if (expand && chatPanel.classList.contains('collapsed')) {
+      setChatCollapsed(false);
+    }
+  }
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  try {
+    const info = await action('chat', { text: text });
+    updateChat(info.chat, myName);
+  } catch (e) {
+    input.value = text;
+    showError('Chat failed');
+  }
+}
+
+async function doLeave() {
+  if (!window.confirm('Leave this game?')) return;
+  try {
+    await action('leave');
+  } catch (e) { /* ensure we still go home */ }
+  location.href = '/';
+}
+
+function setChatCollapsed(collapsed) {
+  chatPanel.classList.toggle('collapsed', collapsed);
+  document.getElementById('chat-toggle').textContent = collapsed ? '+' : '–';
+}
+
+function toggleChat() {
+  setChatCollapsed(!chatPanel.classList.contains('collapsed'));
+}
+
+async function autoEndTurn() {
+  if (autoEnding) return;
+  autoEnding = true;
+  try {
+    render(await action('endturn'));
+  } catch (e) {
+    showError('End turn failed');
+    console.error(e);
+  }
+  autoEnding = false;
+}
+
+function showError(msg) {
+  document.getElementById('msg').textContent = '⚠ ' + msg;
+}
+
+function updateSummary(info) {
+  if (!info || info.mode === 'single') {
+    summaryEl.innerHTML = '<span class="room-id">Single Player</span>';
+    return;
+  }
+  const yourScore = info.players[info.yourSeat] ? info.players[info.yourSeat].score : 0;
+  const turnTxt = info.yourTurn ? 'Your turn!' : 'Waiting for ' + esc((info.players[info.currentPlayer] || {name: ''}).name) + '…';
+  summaryEl.innerHTML =
+    '<span class="turn">' + turnTxt + '</span>' +
+    '<span>Goals: ' + info.totalCatches + ' / ' + info.goalLimit + '</span>' +
+    '<span>Your catches: ' + yourScore + '</span>' +
+    '<span class="room-id">Game ' + info.id + '</span>';
+}
+
+function renderLobby(info) {
+  lobbyEl.style.display = 'flex';
+  playEl.style.display = 'none';
+  document.getElementById('lobby-id').textContent = info.id;
+  document.getElementById('lobby-players').innerHTML = info.players.map(p => {
+    const cls = p.seat === info.yourSeat ? 'you' : '';
+    const mark = p.seat === info.yourSeat ? ' (you)' : '';
+    return '<li class="' + cls + '">' + esc(p.name) + mark + '</li>';
+  }).join('');
+  document.getElementById('lobby-wait').textContent =
+    'Waiting for players… (' + info.players.length + ' / ' + info.maxPlayers + ')';
+  updateChat(info.chat);
+}
+
+function cellClick(x, y, state) {
+  if (!myTurn || !state.reachable || !state.reachable[y] || !state.reachable[y][x]) return;
+  pendingMove = {x, y};
+  document.getElementById('modal-text').textContent = 'Move here?';
+  document.getElementById('modal').classList.add('show');
+}
+
+async function confirmMove() {
+  if (!pendingMove) return;
+  const {x, y} = pendingMove;
+  hideModal();
+  try {
+    const s = await action('move', {x, y});
+    if (s.hasSlid) {
+      render(await action('endturn'));
+    } else {
+      render(s);
+    }
+  } catch (e) {
+    showError('Move failed');
+    console.error(e);
+  }
+}
+
+function hideModal() {
+  document.getElementById('modal').classList.remove('show');
+  pendingMove = null;
+}
+
+function computeGridSize(width, height) {
+  const controlsH = document.getElementById('top-bar').offsetHeight + document.getElementById('msg').offsetHeight + summaryEl.offsetHeight + 60;
+  const availW = window.innerWidth - 24;
+  const availH = window.innerHeight - controlsH - 10;
+  const btnMax = Math.min(availW, availH) * 0.08;
+  const btnSize = Math.max(20, Math.min(btnMax, 40));
+  const tileFromW = (availW - 2 * btnSize) / width;
+  const tileFromH = (availH - 2 * btnSize) / height;
+  const tileSize = Math.max(50, Math.floor(Math.min(tileFromW, tileFromH)));
+  return { tileSize, btnSize: Math.floor(btnSize) };
+}
+
+function render(state) {
+  lastState = state;
+  const grid = document.getElementById('grid');
+  const msg = document.getElementById('msg');
+  const diceResult = document.getElementById('dice-result');
+  const endTurnBtn = document.getElementById('end-turn-btn');
+  const height = state.map.length;
+  const width = state.map[0].length;
+
+  myTurn = state.room.yourTurn;
+  myName = (state.room.players[state.room.yourSeat] || {}).name || '';
+  updateSummary(state.room);
+  renderLegend(state.room);
+  updateChat(state.room.chat, myName);
+
+  // No moves left and the slide is already used: end the turn automatically.
+  if (state.running && myTurn && state.remaining === 0 && state.hasSlid) {
+    autoEndTurn();
+    return;
+  }
+
+  const gameOver = !state.running;
+  msg.textContent = state.Message || '';
+  diceResult.textContent = '🎲 ' + state.remaining;
+  endTurnBtn.disabled = gameOver || !myTurn || (mode !== 'single' && !state.room.yourTurn) || !state.running;
+
+  if (gameOver) {
+    grid.innerHTML = '<div class="win-overlay"><div class="win-text">You Win!<br><a href="/">New Game</a></div></div>';
+    document.getElementById('grid-wrap').style.display = 'flex';
+    return;
+  }
+
+  const {tileSize, btnSize} = computeGridSize(width, height);
+  document.documentElement.style.setProperty('--tile-size', tileSize + 'px');
+  document.documentElement.style.setProperty('--btn-size', btnSize + 'px');
+  grid.style.gridTemplateColumns = `${btnSize}px repeat(${width}, ${tileSize}px) ${btnSize}px`;
+  grid.style.gridTemplateRows = `${btnSize}px repeat(${height}, ${tileSize}px) ${btnSize}px`;
+  grid.innerHTML = '';
+
+  const slidingDisabled = state.hasSlid || !state.running || !myTurn;
+
+  for (const x of state.slideCols || []) {
+    const btn = document.createElement('button');
+    btn.className = 'slide-btn col-btn';
+    btn.textContent = '▼';
+    btn.style.gridRow = '1';
+    btn.style.gridColumn = String(x + 2);
+    btn.disabled = slidingDisabled;
+    btn.addEventListener('click', () => doSlide({col: x, dir: 'down'}));
+    grid.appendChild(btn);
+
+    const btn2 = document.createElement('button');
+    btn2.className = 'slide-btn col-btn';
+    btn2.textContent = '▲';
+    btn2.style.gridRow = String(height + 2);
+    btn2.style.gridColumn = String(x + 2);
+    btn2.disabled = slidingDisabled;
+    btn2.addEventListener('click', () => doSlide({col: x, dir: 'up'}));
+    grid.appendChild(btn2);
+  }
+
+  for (const y of state.slideRows || []) {
+    const btn = document.createElement('button');
+    btn.className = 'slide-btn';
+    btn.textContent = '►';
+    btn.style.gridRow = String(y + 2);
+    btn.style.gridColumn = '1';
+    btn.disabled = slidingDisabled;
+    btn.addEventListener('click', () => doSlide({row: y, dir: 'right'}));
+    grid.appendChild(btn);
+
+    const btn2 = document.createElement('button');
+    btn2.className = 'slide-btn';
+    btn2.textContent = '◄';
+    btn2.style.gridRow = String(y + 2);
+    btn2.style.gridColumn = String(width + 2);
+    btn2.disabled = slidingDisabled;
+    btn2.addEventListener('click', () => doSlide({row: y, dir: 'left'}));
+    grid.appendChild(btn2);
+  }
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const cell = document.createElement('div');
+      const reachable = state.reachable && state.reachable[y] && state.reachable[y][x];
+      cell.className = 'cell' + (reachable ? ' reachable' : '');
+      if (!myTurn && reachable) cell.className += ' disabled';
+      cell.style.gridRow = String(y + 2);
+      cell.style.gridColumn = String(x + 2);
+
+      if (reachable) {
+        cell.addEventListener('click', () => cellClick(x, y, state));
+        const ov = document.createElement('div');
+        ov.className = 'reachable-overlay';
+        cell.appendChild(ov);
+      }
+
+      const img = document.createElement('img');
+      img.className = 'tile-img';
+      img.src = TILE_URL + tileKey(state.map[y][x]);
+      img.alt = '';
+      cell.appendChild(img);
+
+      if (x === state.goalX && y === state.goalY) {
+        const ov = document.createElement('div');
+        ov.className = 'overlay goal';
+        ov.textContent = 'X';
+        cell.appendChild(ov);
+      }
+
+      for (const pl of state.room.players) {
+        if (pl.x === x && pl.y === y) {
+          const ov = document.createElement('div');
+          ov.className = 'overlay player sym-' + pl.seat + (pl.seat === state.room.yourSeat ? ' you' : '');
+          ov.textContent = pl.symbol;
+          cell.appendChild(ov);
+        }
+      }
+
+      grid.appendChild(cell);
+    }
+  }
+}
+
+function renderLegend(info) {
+  const legend = document.getElementById('legend');
+  legend.innerHTML = info.players
+    .map(p => '<span class="entry' + (p.seat === info.yourSeat ? ' you' : '') + '">' +
+             '<span class="tok sym-' + p.seat + '">' + (p.symbol || '@') + '</span>' +
+             (p.seat === info.yourSeat ? '<b>' + esc(p.name) + '</b> (you)' : esc(p.name)) +
+             ' · ' + p.score + ' goal' + (p.score === 1 ? '' : 's') + '</span>')
+    .join('');
+}
+
+async function doSlide(params) {
+  if (!myTurn) return;
+  try {
+    render(await action('slide', params));
+  } catch (e) {
+    showError('Slide failed');
+    console.error(e);
+  }
+}
+
+async function doEndTurn() {
+  if (!myTurn) return;
+  try {
+    render(await action('endturn'));
+  } catch (e) {
+    showError('End turn failed');
+    console.error(e);
+  }
+}
+
+document.getElementById('end-turn-btn').addEventListener('click', doEndTurn);
+document.getElementById('modal-confirm').addEventListener('click', confirmMove);
+document.getElementById('modal').addEventListener('click', hideModal);
+document.getElementById('modal-box').addEventListener('click', e => e.stopPropagation());
+document.getElementById('chat-send').addEventListener('click', sendChat);
+document.getElementById('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendChat();
+});
+document.getElementById('chat-header').addEventListener('click', toggleChat);
+leaveBtn.addEventListener('click', e => {
+  e.preventDefault();
+  doLeave();
+});
+
+async function copyToClipboard(text, btn, label) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    const tmp = document.createElement('textarea');
+    tmp.value = text;
+    tmp.style.position = 'fixed';
+    tmp.style.opacity = '0';
+    document.body.appendChild(tmp);
+    tmp.select();
+    document.execCommand('copy');
+    document.body.removeChild(tmp);
+  }
+  btn.textContent = '✓ Copied';
+  btn.classList.add('copied');
+  setTimeout(() => {
+    btn.textContent = label;
+    btn.classList.remove('copied');
+  }, 1500);
+}
+
+function copyLobbyID() {
+  copyToClipboard(document.getElementById('lobby-id').textContent, document.getElementById('copy-id-btn'), '📋 Copy');
+}
+document.getElementById('copy-id-btn').addEventListener('click', copyLobbyID);
+
+async function tick() {
+  try {
+    const s = await getState();
+    const info = s.room;
+    mode = info.mode;
+    myTurn = info.yourTurn;
+
+    const isMulti = mode !== 'single';
+    leaveBtn.style.display = isMulti ? '' : 'none';
+    chatPanel.style.display = isMulti ? 'flex' : 'none';
+
+    if (isMulti && !info.started) {
+      renderLobby(info);
+    } else if (isMulti && info.finished) {
+      location.href = '/end.html?room=' + encodeURIComponent(ROOM);
+    } else {
+      lobbyEl.style.display = 'none';
+      playEl.style.display = 'block';
+      render(s);
+    }
+  } catch (e) {
+    if (e && e.status === 403) {
+      showError('You were removed from this game');
+      setTimeout(() => { location.href = '/'; }, 1200);
+      return;
+    }
+    showError('Lost connection to server');
+    console.error(e);
+  }
+}
+
+tick();
+setInterval(tick, 1500);
+
+let resizeTimeout;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    getState().then(render, () => { if (lastState) render(lastState); });
+  }, 100);
+});
+</script>
+</body>
+</html>
